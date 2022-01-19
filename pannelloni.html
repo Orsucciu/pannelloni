@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="https://cdn.pannellum.org/2.5/pannellum.css" />
+        <script type="text/javascript" src="https://cdn.pannellum.org/2.5/pannellum.js"></script>
+        <style>
+            #panorama {
+                width: 600px;
+                height: 400px;
+            }
+
+            .col-md-12 {
+                float: left;
+                width: 50%;
+            }
+
+            .row:after {
+                content: "";
+                display: table;
+                clear: both;
+            }
+        </style>
+    </head>
+
+    <body>
+        
+        <div class="row">
+            <div class="col-md-12">
+                <div id="panorama"></div>
+            </div>
+
+            <div class="col-md-12">
+                <div>
+                    <button onclick="reload();">Reload panorama</button>
+                </div>
+                <div id="ui">
+                    <input type="file" id="input" onchange="changePanorama();">
+                </div>
+                <div>
+                    <button id="button_makeHs" onclick="makeHs();">Make hotspots</button>
+                    <button id="button_removeHs" onclick="removeHs();">Remove the last hotspot</button>
+                </div>
+                <div>
+                    <textarea id="descriptor" name="textarea_descriptor" cols="60" rows="20"></textarea>
+                    <button id="button_save" onclick="save();">Download Json</button>
+                </div>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+
+            //this whole thing helps us fetch hotspot coordinates. Pannellum doesn't give them otherwise (does it ?)
+            console.defaultLog = console.log.bind(console);
+            // console.logs should always be length 1
+            console.logs = "";
+            console.log = function(){
+                console.defaultLog.apply(console, arguments);
+
+                //if (putting_hotSpot == true | 1 == 1) {
+
+                    if (arguments[0].substring(0, 6) == "Pitch:"){
+
+                        arguments = arguments[0];
+                        // shadiest part i guess. Should have made a parser that reads the string char by char
+                        arguments = arguments.replace("Center Pitch", '"Center_Pitch"');
+                        arguments = arguments.replace("Center Yaw", '"Center_Yaw"');
+                        arguments = arguments.replace(new RegExp("Pitch", ""), '"Pitch"');
+                        arguments = arguments.replace(new RegExp("Yaw", ""), '"Yaw"');
+                        arguments = arguments.replace("HFOV", '"HFOV"');
+
+                        console.logs = ((JSON.parse("{" + arguments + "}")));
+                        //putting_hotSpot = false;
+                        //addHs();
+                        
+                    }
+                //}
+            };
+
+            //checkpoint to see if we are adding a hotspot
+            //var putting_hotSpot = true;
+            // add hotspot button
+            var cool_button = document.getElementById("button_makeHs");
+            // will be used as a way to undo the last hotspot
+            var hotSpots = [];
+            var hotSpots_save = hotSpots;
+            var panorama = "https://pannellum.org/images/alma.jpg";
+
+            // it's important to have debug enbaled, other wise we can't get hs coordinates
+            var json = {
+                "type": "equirectangular",
+                "hotSpotDebug": true,
+                "autoLoad": true,
+            };
+
+            json.panorama = panorama;
+            json.hotSpots = hotSpots;
+
+            // gets the text from the textarea, and refreshes the panorama with it
+            function reload() {
+                json = JSON.parse(document.getElementById("descriptor").value);
+                viewer = pannellum.viewer('panorama', json);
+                document.getElementById("descriptor").value = JSON.stringify(json, null, 2);
+            }
+
+            // put json into the textarea, and refreshes the pannellum
+            function reload_from_wihin(){
+
+                document.getElementById("descriptor").value = JSON.stringify(json, null, 2);
+                viewer = pannellum.viewer('panorama', json);
+            }
+
+            function changePanorama(){
+                var input = document.getElementById("input");
+                var file = input.files[0];
+                var reader = new FileReader();
+                json.panorama = URL.createObjectURL(file);
+                reload_from_wihin();
+            }
+
+            // turn off the button, and enable the checkpoint
+            //dead code tho
+            function makeHs(){
+
+                /*
+                putting_hotSpot = true;
+                cool_button.innerHTML = "Making hotspots...";
+                cool_button.disabled = true;
+                */
+                addHs();
+            }
+
+            function removeHs(){
+
+                hotSpots = hotSpots_save;
+                json.hotSpots = hotSpots;
+                reload_from_wihin();
+            }
+
+            function addHs() {
+
+                //hs_data = console.logs.pop();
+                hs_data = console.logs;
+                new_hs = filledHs(hs_data.Pitch, hs_data.Yaw);
+                hotSpots_save = hotSpots;
+                hotSpots.push(new_hs);
+                json.hotSpots = hotSpots;
+                reload_from_wihin();
+
+                //cool_button.disabled = false;
+                //cool_button.innerHTML = "Make hotspots";
+                // copilot is both cool and terrifying
+                // developers really like to put each others out of work do they
+            }
+
+            function filledHs(pitch, yaw, type="info", text="", URL="", extra=""){
+
+                var hs = JSON.parse("{}");
+                hs.pitch = pitch;
+                hs.yaw = yaw;
+                hs.type = type;
+                hs.text = text;
+                hs.URL = URL;
+                // TODO : handle extra
+
+                return hs;
+            }
+
+            function save(){
+                    
+                var textFileAsBlob = new Blob([JSON.stringify(JSON.parse(document.getElementById("descriptor").value), null, 4)], {type:'text/plain'});
+                var downloadLink = document.createElement("a");
+                if(input.files[0]){
+                    fileNameToSaveAs = input.files[0].name + ".json";
+                }
+                else{
+                    fileNameToSaveAs = "panorama.json";
+                }
+                downloadLink.download = fileNameToSaveAs;
+                downloadLink.innerHTML = "Download File";
+                if (window.webkitURL != null) {
+                    // Chrome allows the link to be clicked
+                    // without actually adding it to the DOM.
+                    downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+                }
+                else {
+                    // Firefox requires the link to be added to the DOM
+                    // before it can be clicked.
+                    downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+                    downloadLink.onclick = destroyClickedElement;
+                    downloadLink.style.display = "none";
+                    document.body.appendChild(downloadLink);
+                }
+                downloadLink.click();
+            }
+
+            // Create viewer
+            var viewer
+            viewer = pannellum.viewer('panorama', json);
+
+            window.addEventListener('load', function(event) {
+    
+                document.getElementById("descriptor").value = JSON.stringify(json, null, 2);
+            });
+
+        </script>
+    </body>
+</html>
