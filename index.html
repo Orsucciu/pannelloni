@@ -1,7 +1,16 @@
 <!DOCTYPE html>
 <head>
-    <meta http-equiv="Refresh" content="0; url=pannelloni.html" />
+    
 </head>
 <body>
+<script type="text/javascript">
+    document.open();
+    var page = fetch('pannelloni.html')
+    .then((response) => {
+        return response.text();
+    })
+    document.write(page);
+    document.close();
+</script>
 
 </body>
