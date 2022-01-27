@@ -92,6 +92,15 @@
                 "autoLoad": true,
             };
 
+            var targetProxy = new Proxy(json, {
+                set: function (target, key, value) {
+                    console.log(`${key} set to ${value}`);
+                    target[key] = value;
+                    return true;
+                }
+            });
+
+
             json.panorama = panorama;
             json.hotSpots = hotSpots;
 
@@ -103,7 +112,7 @@
             }
 
             // put json into the textarea, and refreshes the pannellum
-            function reload_from_wihin(){
+            function reload_from_within(){
 
                 document.getElementById("descriptor").value = JSON.stringify(json, null, 2);
                 viewer = pannellum.viewer('panorama', json);
@@ -114,7 +123,7 @@
                 var file = input.files[0];
                 var reader = new FileReader();
                 json.panorama = URL.createObjectURL(file);
-                reload_from_wihin();
+                reload_from_within();
             }
 
             // turn off the button, and enable the checkpoint
@@ -133,7 +142,7 @@
 
                 hotSpots = hotSpots_save;
                 json.hotSpots = hotSpots;
-                reload_from_wihin();
+                reload_from_within();
             }
 
             function addHs() {
@@ -144,7 +153,7 @@
                 hotSpots_save = hotSpots;
                 hotSpots.push(new_hs);
                 json.hotSpots = hotSpots;
-                reload_from_wihin();
+                reload_from_within();
 
                 //cool_button.disabled = false;
                 //cool_button.innerHTML = "Make hotspots";
